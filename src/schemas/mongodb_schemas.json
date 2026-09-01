@@ -1,0 +1,181 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sanjeevani AI MongoDB Document Collections & FHIR R4 Schemas",
+  "collections": {
+    "health_records_vault": {
+      "validator": {
+        "$jsonSchema": {
+          "bsonType": "object",
+          "required": [
+            "fhir_resource_type",
+            "patient_id",
+            "primary_user_id",
+            "record_title",
+            "category",
+            "issued_date",
+            "is_encrypted"
+          ],
+          "properties": {
+            "_id": { "bsonType": "objectId" },
+            "fhir_resource_type": {
+              "enum": ["DiagnosticReport", "Observation", "Condition", "MedicationRequest", "DocumentReference"]
+            },
+            "patient_id": { "bsonType": "string", "description": "UUID from PostgreSQL users or family_members" },
+            "primary_user_id": { "bsonType": "string", "description": "UUID of the managing primary user" },
+            "record_title": { "bsonType": "string" },
+            "category": {
+              "enum": [
+                "LAB_REPORT",
+                "PRESCRIPTION",
+                "DISCHARGE_SUMMARY",
+                "VACCINATION",
+                "IMAGING_DICOM",
+                "VITALS_LOG",
+                "AI_TRIAGE_SUMMARY"
+              ]
+            },
+            "issued_date": { "bsonType": "string" },
+            "provider_name": { "bsonType": "string" },
+            "facility_name": { "bsonType": "string" },
+            "is_encrypted": { "bsonType": "bool" },
+            "encryption_metadata": {
+              "bsonType": "object",
+              "properties": {
+                "algorithm": { "enum": ["AES-256-GCM"] },
+                "key_id": { "bsonType": "string" },
+                "iv": { "bsonType": "string" },
+                "auth_tag": { "bsonType": "string" }
+              }
+            },
+            "coding": {
+              "bsonType": "array",
+              "items": {
+                "bsonType": "object",
+                "properties": {
+                  "system": { "bsonType": "string" },
+                  "code": { "bsonType": "string" },
+                  "display": { "bsonType": "string" }
+                }
+              }
+            },
+            "vital_signs": {
+              "bsonType": "object",
+              "properties": {
+                "blood_pressure_systolic": { "bsonType": "int" },
+                "blood_pressure_diastolic": { "bsonType": "int" },
+                "heart_rate_bpm": { "bsonType": "int" },
+                "sp_o2_percentage": { "bsonType": "int" },
+                "body_temperature_celsius": { "bsonType": "double" },
+                "respiratory_rate_bpm": { "bsonType": "int" },
+                "glucose_mg_dl": { "bsonType": "int" }
+              }
+            },
+            "lab_results": {
+              "bsonType": "array",
+              "items": {
+                "bsonType": "object",
+                "properties": {
+                  "test_name": { "bsonType": "string" },
+                  "measured_value": { "bsonType": ["string", "double", "int"] },
+                  "unit": { "bsonType": "string" },
+                  "reference_range": { "bsonType": "string" },
+                  "interpretation": { "enum": ["NORMAL", "ELEVATED", "LOW", "CRITICAL"] }
+                }
+              }
+            },
+            "ai_summary": { "bsonType": "string" },
+            "ai_key_findings": {
+              "bsonType": "array",
+              "items": { "bsonType": "string" }
+            },
+            "tags": {
+              "bsonType": "array",
+              "items": { "bsonType": "string" }
+            },
+            "created_at": { "bsonType": "date" },
+            "updated_at": { "bsonType": "date" }
+          }
+        }
+      },
+      "indexes": [
+        { "key": { "patient_id": 1, "issued_date": -1 } },
+        { "key": { "primary_user_id": 1, "category": 1 } },
+        { "key": { "tags": 1 } }
+      ]
+    },
+    "symptom_checker_sessions": {
+      "validator": {
+        "$jsonSchema": {
+          "bsonType": "object",
+          "required": ["user_id", "reported_symptoms", "triage_level", "differential_diagnoses"],
+          "properties": {
+            "_id": { "bsonType": "objectId" },
+            "user_id": { "bsonType": "string" },
+            "family_member_id": { "bsonType": "string" },
+            "triage_level": {
+              "enum": ["EMERGENCY_IMMEDIATE", "HIGH_URGENT_CARE", "MODERATE_TELEHEALTH", "LOW_SELF_CARE"]
+            },
+            "differential_diagnoses": {
+              "bsonType": "array",
+              "items": {
+                "bsonType": "object",
+                "properties": {
+                  "condition_name": { "bsonType": "string" },
+                  "icd10_code": { "bsonType": "string" },
+                  "confidence_percentage": { "bsonType": "int" },
+                  "reasoning": { "bsonType": "string" },
+                  "recommended_specialist": { "bsonType": "string" }
+                }
+              }
+            },
+            "medgemma_reasoning_trace": { "bsonType": "string" },
+            "milvus_vector_embedding_id": { "bsonType": "string" },
+            "recommended_actions": {
+              "bsonType": "array",
+              "items": {
+                "bsonType": "object",
+                "properties": {
+                  "action_type": {
+                    "enum": ["BOOK_APPOINTMENT", "ORDER_MEDICINE", "EMERGENCY_BLOOD_REQUEST", "SAVE_TO_VAULT"]
+                  },
+                  "description": { "bsonType": "string" },
+                  "priority": { "bsonType": "int" }
+                }
+              }
+            },
+            "is_resolved": { "bsonType": "bool" },
+            "created_at": { "bsonType": "date" }
+          }
+        }
+      },
+      "indexes": [
+        { "key": { "user_id": 1, "created_at": -1 } },
+        { "key": { "triage_level": 1 } },
+        { "key": { "milvus_vector_embedding_id": 1 } }
+      ]
+    },
+    "health_score_daily_metrics": {
+      "validator": {
+        "$jsonSchema": {
+          "bsonType": "object",
+          "required": ["user_id", "date", "composite_score", "breakdown"],
+          "properties": {
+            "_id": { "bsonType": "objectId" },
+            "user_id": { "bsonType": "string" },
+            "date": { "bsonType": "string" },
+            "composite_score": { "bsonType": "int", "minimum": 0, "maximum": 100 },
+            "breakdown": {
+              "bsonType": "object",
+              "required": ["sleep_quality", "activity", "nutrition", "stress_management"]
+            },
+            "ai_coaching_tip": { "bsonType": "string" },
+            "created_at": { "bsonType": "date" }
+          }
+        }
+      },
+      "indexes": [
+        { "key": { "user_id": 1, "date": -1 }, "unique": true }
+      ]
+    }
+  }
+}
